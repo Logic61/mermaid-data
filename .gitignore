@@ -1,0 +1,22 @@
+# ç³»ç»Ÿä¸Žç¼–è¾‘å™¨
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# æœ¬åœ°æµ‹è¯•ä¸Žä¸´æ—¶äº§ç‰©
+tools/_out/
+.chrome-profile/
+_smoke.*
+*.log
+*.tmp
+node_modules/
+
+# Python ç¼“å­˜
+__pycache__/
+*.pyc
+
+# ±¾µØ´ò°ü²úÎï£¨GitHub ¿É×Ô¶¯ÏÂÔØ²Ö¿â ZIP£¬ÎÞÐè¸ú×Ù£©
+*.zip
