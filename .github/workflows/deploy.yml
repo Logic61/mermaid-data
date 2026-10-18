@@ -37,6 +37,6 @@ jobs:
           publish_dir: ./_site
           publish_branch: gh-pages
           force_orphan: true
-          commit_message: "deploy: ${{ github.event.head_commit.message }}"
+          commit_message: "deploy: ${{ github.sha }}"
           user_name: github-actions[bot]
           user_email: 41898282+github-actions[bot]@users.noreply.github.com
