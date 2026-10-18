@@ -100,15 +100,17 @@ chrome --headless=new --window-size=1440,900 --virtual-time-budget=20000 \
 
 ## 部署（GitHub Pages）
 
-仓库：`git@github.com:Logic61/mermaid-data.git`。`.github/workflows/deploy.yml` 在推送到 `main` 或手动触发（Actions → Deploy to GitHub Pages → Run workflow）时执行：
+仓库：`git@github.com:Logic61/mermaid-data.git`，在线地址：<https://logic61.github.io/mermaid-data/>。
+
+`.github/workflows/deploy.yml` 在推送到 `main` 或手动触发（Actions → Deploy to GitHub Pages → Run workflow）时执行：
 
 1. 运行 `node tools/check.js` 与 `node tools/render-check.js`，数据或渲染校验失败则停止部署，不发布有问题的版本；
-2. 只把站点所需文件（`index.html`、`css/`、`js/`、`data/`、`docs/`、`.nojekyll`）打包为 Pages artifact，测试脚本与临时文件不进入站点；
-3. 通过官方 `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages` 发布。
+2. 将站点所需文件（`index.html`、`css/`、`js/`、`data/`、`docs/`、`.nojekyll`）整理为 `_site`，测试脚本与临时文件不进入站点；
+3. 通过 `peaceiris/actions-gh-pages` 把 `_site` 发布到 `gh-pages` 分支，再由 GitHub Pages 从该分支自动构建发布。
 
-首次部署时，若仓库尚未启用 Pages，工作流会尝试自动启用。若运行日志提示无权限，请手动在仓库 Settings → Pages → Build and deployment → Source 选择 **GitHub Actions**，然后重新运行工作流。部署成功后地址为 <https://logic61.github.io/mermaid-data/>。
+本仓库的 Pages 发布源已设置为 `gh-pages` 分支；日常更新只需 `git push origin main`，无需再手动操作。若日后重建仓库，请在 Settings → Pages → Build and deployment 中将 Source 设为「Deploy from a branch」并选择 `gh-pages` 分支；首次部署后同样会自动生效。
 
-本地修改后执行 `git push origin main` 即触发自动部署；只修改文档或数据也会先经过校验。
+仓库中保留的 `gh-pages` 分支由 Action 维护（`force_orphan`，只保留最新一次发布内容），不要在其上手工开发。
 
 ## 引用与版权
 
