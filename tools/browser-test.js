@@ -80,6 +80,16 @@
     var total = JR.entries.length;
     var countText = text(q('[data-db-count]', view));
     check('资料库：计数显示全部条目', countText.indexOf(String(total)) >= 0, countText);
+    var searchBar = q('.db-searchrow [data-db-q]', view);
+    check('资料库：顶部为横向搜索框', !!searchBar && searchBar.getBoundingClientRect().width > 240,
+      searchBar ? 'width=' + Math.round(searchBar.getBoundingClientRect().width) : 'no search');
+    check('资料库：不再显示大段页头介绍', !q('.db-head, .db-head__lede', view));
+    var filterRows = qa('.db-filter-row', view);
+    check('资料库：筛选条件为横向条带', filterRows.length >= 6, 'rows=' + filterRows.length);
+    check('资料库：筛选带位于搜索框下方', !!(searchBar && filterRows[0]) &&
+      searchBar.getBoundingClientRect().bottom <= filterRows[0].getBoundingClientRect().top + 2,
+      searchBar && filterRows[0] ? 'searchBottom=' + Math.round(searchBar.getBoundingClientRect().bottom) + ' filterTop=' + Math.round(filterRows[0].getBoundingClientRect().top) : 'missing');
+    check('资料库：结果行数量与计数一致', qa('.db-row', view).length === total, 'rows=' + qa('.db-row', view).length + ' / ' + total);
     var chip = q('[data-facet="kind"][data-value="ancient"]', view);
     check('资料库：存在类型筛选片', !!chip);
     if (chip) {
@@ -123,16 +133,12 @@
     }
     var drawerBtn = q('[data-db-open]', view);
     if (drawerBtn && drawerBtn.offsetParent !== null) {
-      drawerBtn.click();
-      await wait(220);
-      var side = q('[data-db-side]', view);
-      check('资料库：移动端筛选抽屉可打开',
-        drawerBtn.getAttribute('aria-expanded') === 'true' && !!side && side.classList.contains('is-open'),
-        'expanded=' + drawerBtn.getAttribute('aria-expanded') + ' open=' + (side ? side.classList.contains('is-open') : 'no-side'));
-      var closeBtn = q('[data-db-close]', view);
-      if (closeBtn) { closeBtn.click(); await wait(180); }
-      check('资料库：移动端筛选抽屉可关闭', drawerBtn.getAttribute('aria-expanded') === 'false',
-        'expanded=' + drawerBtn.getAttribute('aria-expanded'));
+      check('资料库：旧版左侧筛选抽屉不应出现', false, '仍存在 data-db-open 抽屉按钮');
+    }
+    if (window.innerWidth <= 760) {
+      var chipRows = qa('.db-filter-row__chips', view);
+      var scrollable = chipRows.some(function (el) { return el.scrollWidth > el.clientWidth + 2; });
+      check('资料库：窄屏筛选条带可横向滑动', scrollable, 'rows=' + chipRows.length + ' scrollable=' + scrollable);
     }
 
     /* ---------------- 条目详情 ---------------- */

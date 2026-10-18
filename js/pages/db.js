@@ -239,47 +239,60 @@
     return sortList(filterEntries(st), st.sort);
   }
 
-  /* ---------------------------------------------------------------- 渲染：页头 */
-  function statsHtml() {
-    var total = JR.entries.length;
-    var years = [];
-    var kindCount = {};
-    KIND_IDS.forEach(function (id) { kindCount[id] = 0; });
-    JR.entries.forEach(function (e) {
-      var y = yearOf(e);
-      if (y !== null) years.push(y);
-      if (kindCount[e.kind] === undefined) kindCount[e.kind] = 0;
-      kindCount[e.kind] += 1;
-    });
-    var span = '暂无';
-    if (years.length) {
-      var min = Math.min.apply(null, years);
-      var max = Math.max.apply(null, years);
-      span = JR.fmtRange(min, max);
-    }
-    var kindBits = (S.kinds || []).map(function (k) {
-      return JR.esc(k.label) + ' ' + (kindCount[k.id] || 0);
-    }).join(' · ');
-    return '<dl class="db-stats" aria-label="数据概览">' +
-      '<div class="db-stats__item"><dt>条目</dt><dd><strong class="num">' + total + '</strong> 条</dd></div>' +
-      '<div class="db-stats__item"><dt>类型</dt><dd><strong class="num">' + (S.kinds || []).length + '</strong> 类' +
-      '<span class="db-stats__sub">' + kindBits + '</span></dd></div>' +
-      '<div class="db-stats__item"><dt>年代跨度</dt><dd class="mono db-stats__span">' + JR.esc(span) + '</dd></div>' +
-      '</dl>';
+  /* ---------------------------------------------------------------- 渲染：顶部检索与横向筛选 */
+  function searchRowHtml(st) {
+    return '<div class="db-searchrow">' +
+      '<div class="search db-search">' + JR.icon('search') +
+      '<label class="sr-only" for="db-q">关键词检索</label>' +
+      '<input class="input" id="db-q" type="search" data-db-q autocomplete="off" placeholder="检索题名、作品、异名、摘要、标签与引文" value="' + JR.escAttr(st.q) + '">' +
+      '</div>' +
+      '<div class="db-searchrow__actions">' +
+      '<label class="db-sort-label" for="db-sort">排序</label>' +
+      '<select class="select db-sort" id="db-sort" data-db-sort>' +
+      SORTS.map(function (s) {
+        return '<option value="' + JR.escAttr(s.id) + '"' + (s.id === st.sort ? ' selected' : '') + '>' + JR.esc(s.label) + '</option>';
+      }).join('') +
+      '</select>' +
+      '<button type="button" class="btn btn--sm btn--ghost db-export" data-db-export>' + JR.icon('download') + '导出 CSV</button>' +
+      '</div>' +
+      '</div>';
   }
 
-  function pageHeadHtml() {
-    return '<header class="db-head">' +
-      '<p class="kicker">检索</p>' +
-      '<div class="db-head__row">' +
-      '<div class="db-head__text">' +
-      '<h1 class="display display--sm">资料库</h1>' +
-      '<p class="lede db-head__lede">按年代、谱系、媒介与形象编码检索鲛人、美人鱼与塞壬条目，筛选结果可导出为 CSV，也可选入比较台并置对照。' +
-      '所有条目均标注出处与置信度，供研究核对，不作定本。</p>' +
+  function facetRowHtml(label, inner, extraClass) {
+    return '<div class="db-filter-row' + (extraClass ? ' ' + extraClass : '') + '" role="group" aria-label="' + JR.escAttr(label) + '">' +
+      '<span class="db-filter-row__label">' + JR.esc(label) + '</span>' +
+      '<div class="db-filter-row__chips">' + inner + '</div>' +
+      '</div>';
+  }
+
+  function filtersHtml(st) {
+    var kinds = (S.kinds || []).map(function (k) { return { id: k.id, label: k.label }; });
+    var cultures = (S.cultures || []).map(function (c) { return { id: c.id, label: c.label }; });
+    var mediums = (S.mediums || []).map(function (m) { return { id: m.id, label: m.label }; });
+    var eras = ERAS.map(function (e) { return { id: e.id, label: e.label, desc: e.range }; });
+
+    return '<div class="db-filters">' +
+      '<div class="db-filter-grid">' +
+      facetRowHtml('类型', chipListHtml(kinds, 'kind', st, false)) +
+      facetRowHtml('谱系', chipListHtml(cultures, 'culture', st, false)) +
+      facetRowHtml('年代', chipListHtml(eras, 'era', st, true)) +
+      facetRowHtml('媒介', chipListHtml(mediums, 'medium', st, false)) +
       '</div>' +
-      statsHtml() +
+      facetRowHtml('形态', chipListHtml(SHAPE_TRAITS, 'traits', st, true), 'db-filter-row--wide') +
+      facetRowHtml('能力', chipListHtml(ABILITY_TRAITS, 'traits', st, true), 'db-filter-row--wide') +
+      facetRowHtml('叙事', chipListHtml(NARRATIVE_TRAITS, 'narratives', st, true), 'db-filter-row--wide') +
+      '</div>';
+  }
+
+  function resultBarHtml(listLength, st) {
+    var active = activeFilterCount(st);
+    return '<div class="db-resultbar">' +
+      '<p class="count db-count" role="status" aria-live="polite" data-db-count>' + countHtml(listLength) + '</p>' +
+      '<div class="db-resultbar__actions">' +
+      '<span class="db-resultbar__hint" data-db-hint>' + (active ? '已启用 ' + active + ' 组筛选' : '可组合筛选，结果实时更新') + '</span>' +
+      '<button type="button" class="btn btn--sm btn--ghost" data-db-reset' + (active ? '' : ' disabled') + '>清除全部筛选</button>' +
       '</div>' +
-      '</header>';
+      '</div>';
   }
 
   /* ---------------------------------------------------------------- 渲染：筛选栏 */
@@ -295,56 +308,10 @@
       '</button>';
   }
 
-  function facetHtml(title, hint, inner) {
-    return '<section class="db-facet">' +
-      '<h2 class="db-facet__title">' + JR.esc(title) + '</h2>' +
-      (hint ? '<p class="db-facet__hint">' + hint + '</p>' : '') +
-      inner +
-      '</section>';
-  }
-
   function chipListHtml(items, facet, st, withDesc) {
-    return '<div class="chip-list db-chip-list">' + items.map(function (item) {
+    return items.map(function (item) {
       return chipHtml(facet, item.id, item.label, withDesc ? item.desc : '', st);
-    }).join('') + '</div>';
-  }
-
-  function sideHtml(st) {
-    var kinds = (S.kinds || []).map(function (k) { return { id: k.id, label: k.label }; });
-    var cultures = (S.cultures || []).map(function (c) { return { id: c.id, label: c.label }; });
-    var mediums = (S.mediums || []).map(function (m) { return { id: m.id, label: m.label }; });
-    var eras = ERAS.map(function (e) { return { id: e.id, label: e.label, desc: e.range }; });
-
-    var search =
-      '<section class="db-facet db-facet--search">' +
-      '<h2 class="db-facet__title">关键词</h2>' +
-      '<label class="field-label db-facet__label" for="db-q">在题名、作品、异名、摘要、标签与引文中检索</label>' +
-      '<div class="search">' + JR.icon('search') +
-      '<input class="input" id="db-q" type="search" data-db-q autocomplete="off" placeholder="例如：鲛人、泣珠、安徒生" value="' + JR.escAttr(st.q) + '">' +
-      '</div>' +
-      '</section>';
-
-    var eraChips = chipListHtml(eras, 'era', st, true);
-
-    return '<aside class="db-side" id="db-filters" data-db-side aria-label="检索筛选">' +
-      '<div class="db-side__head">' +
-      '<p class="kicker">筛选条件</p>' +
-      '<div class="db-side__head-actions">' +
-      '<button type="button" class="btn btn--sm btn--ghost db-side__clear" data-db-reset>清除全部</button>' +
-      '<button type="button" class="btn btn--sm btn--ghost db-side__close" data-db-close aria-label="收起筛选">' + JR.icon('close') + '</button>' +
-      '</div>' +
-      '</div>' +
-      search +
-      facetHtml('类型', '可多选，符合任一类型即计入结果。', chipListHtml(kinds, 'kind', st, false)) +
-      facetHtml('谱系', '可多选，符合任一谱系即计入结果。', chipListHtml(cultures, 'culture', st, false)) +
-      facetHtml('年代', '可多选，按条目年份归档。近现代取 1840 至 1949 年，现当代自 1949 年起；未编年条目仅在未选年代时显示。', eraChips) +
-      facetHtml('媒介', '可多选，符合任一媒介即计入结果。', chipListHtml(mediums, 'medium', st, false)) +
-      facetHtml('形象特征', '可多选，条目须同时具备所选特征。',
-        '<div class="db-facet__sub"><p class="db-facet__subtitle">形态</p>' + chipListHtml(SHAPE_TRAITS, 'traits', st, true) + '</div>' +
-        '<div class="db-facet__sub"><p class="db-facet__subtitle">能力与行为</p>' + chipListHtml(ABILITY_TRAITS, 'traits', st, true) + '</div>') +
-      facetHtml('叙事功能', '可多选，条目须同时具备所选叙事功能。', chipListHtml(NARRATIVE_TRAITS, 'narratives', st, true)) +
-      '<p class="db-side__note">特征计数为「在当前其他条件下再叠加该特征」后的命中条目数。</p>' +
-      '</aside>';
+    }).join('');
   }
 
   /* ---------------------------------------------------------------- 渲染：结果 */
@@ -452,31 +419,6 @@
     return '共 <strong>' + n + '</strong> 条结果';
   }
 
-  function toolbarHtml(listLength, st) {
-    var active = activeFilterCount(st);
-    return '<div class="toolbar db-toolbar">' +
-      '<div class="db-toolbar__left">' +
-      '<button type="button" class="btn btn--sm btn--ghost db-side-toggle" data-db-open aria-expanded="false" aria-controls="db-filters">' +
-      JR.icon('filter') + '筛选' + (active ? '<span class="db-side-toggle__n">' + active + '</span>' : '') +
-      '</button>' +
-      '<p class="count db-count" role="status" aria-live="polite" data-db-count>' + countHtml(listLength) + '</p>' +
-      '</div>' +
-      '<div class="toolbar__group db-toolbar__group">' +
-      '<label class="db-sort-label" for="db-sort">排序</label>' +
-      '<select class="select db-sort" id="db-sort" data-db-sort>' +
-      SORTS.map(function (s) {
-        return '<option value="' + JR.escAttr(s.id) + '"' + (s.id === st.sort ? ' selected' : '') + '>' + JR.esc(s.label) + '</option>';
-      }).join('') +
-      '</select>' +
-      '<button type="button" class="btn btn--sm btn--ghost db-export" data-db-export>' + JR.icon('download') + '导出 CSV</button>' +
-      '</div>' +
-      '</div>';
-  }
-
-  function scrimHtml() {
-    return '<div class="db-scrim" data-db-scrim hidden></div>';
-  }
-
   function cmpBarHtml(cmpIds) {
     var n = cmpIds.length;
     return '<div class="db-cmpbar" data-cmp-bar role="region" aria-label="比较台"' + (n ? '' : ' hidden') + '>' +
@@ -508,22 +450,20 @@
     render: function (params) {
       var st = readState(params);
       var cmpIds = JR.compare.get();
-      var head = '<section class="wrap section section--page db-page">' + pageHeadHtml();
+      var head = '<section class="wrap section section--page db-page">' +
+        '<h1 class="sr-only">资料库</h1>' +
+        (JR.entries.length ? '<div class="db-tools">' + searchRowHtml(st) + filtersHtml(st) + '</div>' : '');
 
       if (!JR.entries.length) {
-        return head + emptyDataHtml() + '</section>';
+        return head + emptyDataHtml() + cmpBarHtml(cmpIds) + '</section>';
       }
 
       var list = currentList(st);
       return head +
-        '<div class="db-layout">' +
-        sideHtml(st) +
-        '<div class="db-main">' +
-        toolbarHtml(list.length, st) +
+        '<div class="db-results">' +
+        resultBarHtml(list.length, st) +
         '<div class="db-result db-result--list" data-db-result>' + resultHtml(list, st, cmpIds) + '</div>' +
         '</div>' +
-        '</div>' +
-        scrimHtml() +
         cmpBarHtml(cmpIds) +
         '</section>';
     },
@@ -531,7 +471,6 @@
     mount: function (root, params) {
       var st = readState(params);
       cleanupFns = [];
-      var drawerOpen = false;
       var qTimer = null;
 
       function on(target, type, fn) {
@@ -581,21 +520,12 @@
         });
       }
 
-      function syncToggleBadge() {
-        var toggle = root.querySelector('[data-db-open]');
-        if (!toggle) return;
+      function syncResultBar() {
         var active = activeFilterCount(st);
-        var badge = toggle.querySelector('.db-side-toggle__n');
-        if (active) {
-          if (!badge) {
-            badge = global.document.createElement('span');
-            badge.className = 'db-side-toggle__n';
-            toggle.appendChild(badge);
-          }
-          badge.textContent = String(active);
-        } else if (badge) {
-          badge.parentNode.removeChild(badge);
-        }
+        var hint = root.querySelector('[data-db-hint]');
+        if (hint) hint.textContent = active ? '已启用 ' + active + ' 组筛选' : '可组合筛选，结果实时更新';
+        var reset = root.querySelector('[data-db-reset]');
+        if (reset) reset.disabled = active === 0;
       }
 
       function syncAll() {
@@ -605,7 +535,7 @@
         var countEl = root.querySelector('[data-db-count]');
         if (countEl) countEl.innerHTML = countHtml(list.length);
         updateChipStates();
-        syncToggleBadge();
+        syncResultBar();
         syncCompare();
         JR.replaceQuery(serializeState(st), 'db');
       }
@@ -617,31 +547,6 @@
         var sortSel = root.querySelector('[data-db-sort]');
         if (sortSel) sortSel.value = DEFAULT_SORT;
         syncAll();
-      }
-
-      function setDrawer(open, silent) {
-        var side = root.querySelector('[data-db-side]');
-        var scrim = root.querySelector('[data-db-scrim]');
-        var toggle = root.querySelector('[data-db-open]');
-        if (!side) return;
-        drawerOpen = !!open;
-        side.classList.toggle('is-open', !!open);
-        if (scrim) {
-          scrim.hidden = !open;
-          scrim.classList.toggle('is-open', !!open);
-        }
-        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (global.document && global.document.body) {
-          global.document.body.classList.toggle('db-drawer-open', !!open);
-        }
-        if (!open) {
-          if (!silent && toggle && !toggle.hidden) {
-            try { toggle.focus(); } catch (err) {}
-          }
-          return;
-        }
-        var first = side.querySelector('[data-db-q]') || side.querySelector('input, select, button');
-        if (first) { try { first.focus(); } catch (err) {} }
       }
 
       function exportCsv() {
@@ -716,7 +621,7 @@
         });
       }
 
-      /* 点击委托：筛选片、比较、工具栏、行跳转、抽屉 */
+      /* 点击委托：筛选片、比较、工具栏、行跳转 */
       on(root, 'click', function (e) {
         var target = e.target;
         if (!target || !target.closest) return;
@@ -732,15 +637,6 @@
 
         var exportBtn = target.closest('[data-db-export]');
         if (exportBtn) { exportCsv(); return; }
-
-        var openBtn = target.closest('[data-db-open]');
-        if (openBtn) { setDrawer(true); return; }
-
-        var closeBtn = target.closest('[data-db-close]');
-        if (closeBtn) { setDrawer(false); return; }
-
-        var scrim = target.closest('[data-db-scrim]');
-        if (scrim) { setDrawer(false); return; }
 
         var cmpClear = target.closest('[data-cmp-clear]');
         if (cmpClear) {
@@ -764,41 +660,11 @@
         if (e && e.key === 'jr-compare-v1') syncCompare();
       });
 
-      /* 抽屉键盘与视口 */
-      on(global.document, 'keydown', function (e) {
-        if (!drawerOpen) return;
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          setDrawer(false);
-          return;
-        }
-        if (e.key !== 'Tab') return;
-        var side = root.querySelector('[data-db-side]');
-        if (!side) return;
-        var items = Array.prototype.filter.call(
-          side.querySelectorAll('button, input, select, a[href]'),
-          function (el) { return !el.disabled && el.type !== 'hidden'; }
-        );
-        if (!items.length) return;
-        var first = items[0];
-        var last = items[items.length - 1];
-        var active = global.document.activeElement;
-        if (e.shiftKey && (active === first || !side.contains(active))) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && (active === last || !side.contains(active))) {
-          e.preventDefault();
-          first.focus();
-        }
-      });
-      on(global, 'resize', function () {
-        if (drawerOpen && global.innerWidth >= 960) setDrawer(false, true);
-      });
-
       cleanupFns.push(function () { clearTimeout(qTimer); });
 
       /* 初次同步：URL 已由路由提供，不重写；仅校正比较态与控件值 */
       syncCompare();
+      syncResultBar();
       if (qInput) qInput.value = st.q;
       if (sortSel) sortSel.value = st.sort;
     },
@@ -810,7 +676,6 @@
       cleanupFns = [];
       if (global.document && global.document.body) {
         global.document.body.classList.remove('db-has-cmpbar');
-        global.document.body.classList.remove('db-drawer-open');
       }
     }
   });
