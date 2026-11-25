@@ -9,7 +9,7 @@
 ## 1. 技术底线（硬约束）
 
 1. **纯静态**：`index.html` + CSS + 经典 `<script>`（非 ES Module）。不得使用 `type="module"`、`fetch()`、`import`、打包器。原因：用户可能直接以 `file://` 打开，模块与 fetch 会被 CORS 拦截。
-2. **零外部依赖**：不加载 CDN 字体、图标库、JS 库、外部图片。字体使用系统中文字体栈；图像一律由 `js/figures.js` 内联 SVG 提供。
+2. **零外部依赖**：不加载 CDN 字体、图标库、JS 库、外部图片。字体使用系统中文字体栈。插画与背景为 `assets/` 中的本地 WebP，形态示意线描由 `js/figures.js` 提供。
 3. **全局命名空间**：`window.JR`（工具与页面注册）、`window.JR_DATA`（数据）、`window.JR_SCHEMA`（术语表）、`window.JR_BIB`（参考书目）。数据文件只 push 数组，不定义函数。
 4. **脚本顺序**（`index.html` 中）：`data/schema.js` → `data/entries-cn.js` → `data/entries-global.js` → `data/bibliography.js` → `js/figures.js` → `js/core.js` → 页面脚本 → `js/app.js`。页面脚本必须在 `app.js` 之前，且在文件末尾调用 `JR.page(...)` 自行注册。
 5. **每条页面脚本、样式文件归一名 owner**（见第 7 节），不得修改他人文件；发现他人文件有问题，发消息给 owner 或 Lead。
@@ -20,7 +20,7 @@
 
 ## 2. 设计方向（已锁定，不再发散）
 
-**设计读法**：面向中文人文学者的研究档案型网站，视觉语言为「海洋志异档案 / 古籍图版」，用冷调青灰纸色、墨色、深青主色与朱砂印色；衬线宋体承担标题与引文（本项目属文献/神话/古籍研究，衬线有明确理据），黑体承担界面与长文。
+**设计读法**：面向中文人文学者与一般读者的研究档案型网站。首页采用展览式开篇，以海雾宣纸、深青和朱砂承托图版。宋体用于标题与引文，黑体用于界面与长文。
 
 - 三个旋钮：`DESIGN_VARIANCE 7 / MOTION_INTENSITY 5 / VISUAL_DENSITY 5`。
 - **单一浅色主题**，全站不得出现深色反色区块；不得做主题切换。
@@ -34,11 +34,11 @@
 ### CSS 变量（已定义于 `css/base.css`，页面样式必须复用，不得另起色板）
 
 ```
---paper #eef0e9   --paper-2 #e3e7dd   --panel #f6f7f1
---ink #16221f     --ink-2 #3a4944     --muted #66746e
---line #c7d0c5    --line-2 #9fad9f
---teal #1d5c54    --teal-deep #123f3a --teal-soft #d7e2da
---seal #a63a2b    --seal-soft #ead9d2 --sand #e9e3d1
+--paper #f4f2e9   --paper-2 #e8e9df   --panel #faf8ef
+--ink #192925     --ink-2 #364a41     --muted #53665c
+--line #ccd2c5    --line-2 #97a79a
+--teal #245b50    --teal-deep #193f36 --teal-soft #dce8dc
+--seal #994637    --seal-soft #efddd3 --sand #e9e3d1
 --font-serif 宋体栈 / --font-sans 黑体栈 / --font-mono 等宽栈
 --radius 2px   --nav-h 68px   --wrap 1320px   --gutter clamp(20px,4vw,56px)
 ```

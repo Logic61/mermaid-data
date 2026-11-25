@@ -27,7 +27,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp -R index.html css js data docs .nojekyll _site/
+          cp -R index.html assets css js data docs .nojekyll _site/
           touch _site/.nojekyll
 
       - name: Publish to gh-pages branch

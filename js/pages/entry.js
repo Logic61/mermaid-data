@@ -237,7 +237,7 @@
 
   /* ---------------------------------------------------------------- 渲染：侧栏 */
   function suggestFigure(e) {
-    /* 条目未给 figure 时，按谱系与形态特征选取示意线描；仅为版式配图，不指认原图 */
+    /* 条目未给 figure 时，按谱系与形态特征选取示意图。 */
     var marked = {};
     listOf(e.traits).forEach(function (id) { marked[id] = true; });
     listOf(e.narratives).forEach(function (id) { marked[id] = true; });
@@ -276,10 +276,11 @@
         '<p class="caption">本条目的图版尚待补充。</p>' +
         '</div>';
     }
-    var caption = explicit
-      ? '据文献描述重绘的示意线描，非原件图像。'
-      : '示意线描，依据谱系与形态特征选取，非该条目原图。';
-    return '<figure class="entry-plate">' + fig +
+    var generated = (global.JR_GENERATED_FIGURES || []).indexOf(name) >= 0;
+    var caption = generated
+      ? 'AI 创作示意，用于呈现形态特征。图像资料请查阅条目出处。'
+      : '线描示意，用于呈现形态特征。图像资料请查阅条目出处。';
+    return '<figure class="entry-plate' + (generated ? ' entry-plate--illustrated' : '') + '">' + fig +
       '<figcaption class="caption entry-plate__cap">' + caption + '</figcaption>' +
       '</figure>';
   }

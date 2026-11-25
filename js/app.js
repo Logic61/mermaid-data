@@ -134,6 +134,16 @@
       if (global.console) console.warn('[JR] 没有装入任何条目，请检查 data/entries-*.js 是否加载。');
     }
 
+    var skip = doc.querySelector('.skip-link');
+    var view = doc.getElementById('view');
+    if (skip && view) {
+      skip.addEventListener('click', function (e) {
+        e.preventDefault();
+        view.focus({ preventScroll: true });
+        view.scrollIntoView();
+      });
+    }
+
     /* 导航开关 */
     var toggle = doc.querySelector('[data-nav-toggle]');
     var header = doc.querySelector('.site-header');

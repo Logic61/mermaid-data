@@ -72,6 +72,19 @@
       check('导航：桌面端单行显示', Object.keys(tops).length <= 1, 'tops=' + Object.keys(tops).join(','));
     }
     check('首页：有精选条目链接', qa('a[href^="#/entry/"]', view).length >= 4, 'links=' + qa('a[href^="#/entry/"]', view).length);
+    var heroArt = q('.hero__art', view);
+    var heroLoaded = heroArt && await heroArt.decode().then(function () { return heroArt.naturalWidth > 0; }, function () { return false; });
+    check('首页：鲛人插画加载成功', heroLoaded, heroArt ? heroArt.currentSrc : '无插画');
+    var homeSearch = q('.hero__cta', view);
+    var homeInput = q('#home-q', view);
+    check('首页：有独立检索入口', !!(homeSearch && homeInput));
+    if (homeSearch && homeInput) {
+      homeInput.value = '鲛人';
+      homeSearch.requestSubmit();
+      await wait(260);
+      var dbInputFromHome = q('#db-q', view);
+      check('首页：检索词传到资料库', !!dbInputFromHome && dbInputFromHome.value === '鲛人' && location.hash.indexOf('#/db?q=') === 0, location.hash);
+    }
 
     /* ---------------- 资料库 ---------------- */
     location.hash = '#/db';
@@ -195,17 +208,42 @@
     location.hash = '#/timeline';
     await wait(300);
     view = pageState('时间轴');
-    var marks = qa('[data-entry-id]', view).length;
-    check('时间轴：标记数量充足', marks >= 30, 'marks=' + marks);
+    var story = q('[data-tl-story]', view);
+    check('时间轴：默认显示四段图文编年', !!story && qa('.tl-chapter', story).length === 4);
+    check('时间轴：图文编年包含全部条目入口', !!story && qa('a[href^="#/entry/"]', story).length === JR.entries.length);
+    check('时间轴：原文和示意图同时可读', !!(q('.tl-record__excerpt', view) && q('.tl-record__art img', view)));
+    var chapterJump = q('[data-tl-jump="medieval"]', view);
+    if (chapterJump) {
+      chapterJump.click();
+      check('时间轴：时期入口定位并聚焦标题', document.activeElement.id === 'tl-chapter-medieval');
+    }
+    var tearTopic = q('[data-tl-topic="b_tears_pearl"]', view);
+    if (tearTopic) {
+      tearTopic.click();
+      var tearLinks = qa('.tl-record h3 a', view);
+      var tearEntries = JR.entries.filter(function (entry) { return entry.traits.indexOf('b_tears_pearl') >= 0; });
+      check('时间轴：泣珠线索覆盖所有匹配条目', tearLinks.length === tearEntries.length &&
+        tearEntries.every(function (entry) { return tearLinks.some(function (link) { return link.getAttribute('href') === '#/entry/' + JR.param(entry.id); }); }));
+      check('时间轴：线索筛选写入 URL', location.hash.indexOf('topic=b_tears_pearl') >= 0, location.hash);
+      q('[data-tl-topic=""]', view).click();
+    }
+    var chartBtn = q('[data-tl-view="chart"]', view);
+    if (chartBtn) chartBtn.click();
+    var marks = qa('.tl-mark', view).length;
+    check('时间轴：可切换等比例时序图', !!chartBtn && chartBtn.getAttribute('aria-pressed') === 'true' && marks >= 30, 'marks=' + marks);
     var modern = q('[data-tl-scale="modern"]', view);
     check('时间轴：存在尺度切换', !!modern);
     if (modern) {
       modern.click();
       await wait(280);
       check('时间轴：尺度切换写入 URL', location.hash.indexOf('scale=modern') >= 0, location.hash);
-      var modernMarks = qa('[data-entry-id]', view).length;
+      var modernMarks = qa('.tl-mark', view).length;
       check('时间轴：近现代标记数减少', modernMarks > 0 && modernMarks < marks, 'modern=' + modernMarks + ' / all=' + marks);
     }
+    location.hash = '#/timeline?focus=' + ids[0];
+    await wait(260);
+    var focusedMark = q('.tl-mark.is-focus', view);
+    check('时间轴：条目深链接仍定位到时序图', !!focusedMark && focusedMark.getAttribute('data-entry-id') === ids[0]);
     var listBtn = q('[data-tl-view="list"]', view);
     if (listBtn) {
       listBtn.click();

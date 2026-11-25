@@ -1,53 +1,24 @@
 /* ==========================================================================
-   鲛人研究数据库 · 图版（内联 SVG 线描）
-   全部为本项目据文献描述重绘的示意线描，不复制任何文物或作品原图。
+   鲛人研究数据库 · 示意图版
+   包括本地 AI 创作插画与内联 SVG 示意图。
    使用：JR.figure('jiao-ren')；键名见 window.JR_FIGURES。
    ========================================================================== */
 (function (global) {
   'use strict';
 
   var ATTR = 'fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  var script = global.document && global.document.currentScript;
+  var assetRoot = script ? new URL('../assets/', script.src).href : 'assets/';
 
   var FIGURES = {};
 
   /* 中国谱系：人首鱼身、织绡、泣珠 */
   FIGURES['jiao-ren'] =
-    '<svg viewBox="0 0 220 280" ' + ATTR + '>' +
-    '<g opacity=".5"><path d="M16 250c26-7 45 5 72-1s42 6 68-1 36 3 50-2"/><path d="M30 261c23-5 38 4 61 0s36 5 59-1 27 2 38-1"/></g>' +
-    '<path d="M110 32c12 0 21 8 21 19 0 10-9 18-21 18s-21-8-21-18c0-11 9-19 21-19Z"/>' +
-    '<path d="M92 43c-6 12-5 26 3 37M89 52c-8 14-8 28 0 40M128 43c6 12 5 26-3 37M131 52c8 14 8 28 0 40"/>' +
-    '<path d="M102 51h.01M118 51h.01" stroke-width="2.2"/><path d="M108 60c2 2 4 2 6 0" opacity=".8"/>' +
-    '<path d="M101 70v10M119 70v10"/>' +
-    '<path d="M101 80c-14 3-24 12-28 26M119 80c14 3 24 12 28 26"/>' +
-    '<path d="M73 108c2 14 1 24-2 34M147 108c-2 14-1 24 2 34"/>' +
-    '<path d="M71 142c10 8 24 12 39 12s29-4 39-12"/>' +
-    '<path d="M74 112c-10 10-16 26-16 42 0 8 3 13 8 16"/>' +
-    '<path d="M146 112c10 6 18 4 24-4"/>' +
-    '<path d="M168 104c8 4 12 14 10 24-2 12-10 18-22 20-8 2-13 8-15 16" opacity=".75"/>' +
-    '<path d="M156 110c10 6 12 18 6 28-4 7-12 10-20 9" opacity=".5"/>' +
-    '<path d="M110 154c-2 18-8 34-20 48M110 154c2 18 8 34 20 48"/>' +
-    '<path d="M90 202c8 4 14 12 16 24M130 202c-8 4-14 12-16 24"/>' +
-    '<path d="M106 226c-14 2-28 10-38 22 14 2 26 8 34 18 4-12 10-23 18-32M114 226c14 2 28 10 38 22-14 2-26 8-34 18-4-12-10-23-18-32"/>' +
-    '<g opacity=".5"><path d="M100 170q10 6 20 0M98 182q12 7 24 0M96 194q14 8 28 0"/><path d="M104 166q-8 6-8 14M116 166q8 6 8 14" opacity=".7"/></g>' +
-    '<circle cx="160" cy="92" r="4.5"/><circle cx="170" cy="84" r="2.5" opacity=".6"/><circle cx="152" cy="84" r="1.8" opacity=".5"/>' +
-    '</svg>';
+    '<img class="figure__image" src="' + assetRoot + 'jiaoren-720.webp" width="720" height="540" loading="lazy" decoding="async" alt="手执薄绡、鱼尾卷在海浪里的鲛人">';
 
   /* 希腊古风：人首鸟身塞壬（示意） */
   FIGURES['siren-bird'] =
-    '<svg viewBox="0 0 220 280" ' + ATTR + '>' +
-    '<g opacity=".5"><path d="M22 238h176"/><path d="M42 247h136" opacity=".5"/></g>' +
-    '<path d="M104 34c11 0 19 8 19 18s-8 18-19 18-19-8-19-18 8-18 19-18Z"/>' +
-    '<path d="M90 44c-6 10-6 22 1 32M87 53c-8 12-8 24 0 34M118 44c6 10 6 22-1 32M121 53c8 12 8 24 0 34"/>' +
-    '<path d="M97 53h.01M111 53h.01" stroke-width="2"/><path d="M103 62c2 1 4 1 6 0"/>' +
-    '<path d="M104 70v12"/>' +
-    '<path d="M96 82c-10 6-16 18-16 32M112 82c10 6 16 18 16 32"/>' +
-    '<path d="M80 114c-12 16-16 38-12 56 4 16 16 26 32 26 16 0 28-10 34-26 6-20 2-42-10-56"/>' +
-    '<path d="M78 122c-18 4-30 16-34 34 8 14 24 20 42 16 10-10 14-24 10-38"/>' +
-    '<path d="M66 132c-8 8-12 18-10 30M76 128c-4 12-4 24 2 34M88 126c-2 12 0 22 6 32" opacity=".6"/>' +
-    '<path d="M112 190c16 8 34 14 54 16-8 6-14 14-18 24-12-14-26-24-40-28" opacity=".85"/>' +
-    '<path d="M110 196c8 16 18 30 32 40-14-2-28 0-40 6 2-16 2-32 0-46" opacity=".7"/>' +
-    '<path d="M96 200v28M122 200v28M96 228l-8 10M96 228l8 10M122 228l-8 10M122 228l8 10"/>' +
-    '</svg>';
+    '<img class="figure__image" src="' + assetRoot + 'siren.webp" width="800" height="600" loading="lazy" decoding="async" alt="陶绘风格的虚构图像，表现人首鸟身的塞壬">';
 
   /* 中世纪塞壬：鱼尾、镜与梳 */
   FIGURES['siren-fish'] =
@@ -72,22 +43,7 @@
 
   /* 近现代：长发文身美人鱼（示意） */
   FIGURES['mermaid'] =
-    '<svg viewBox="0 0 240 290" ' + ATTR + '>' +
-    '<g opacity=".5"><path d="M14 258c34-8 58 6 92-1s54 6 86-1 30 3 42-2"/><path d="M46 270c26-4 44 3 68 0s42 4 66-1" opacity=".6"/></g>' +
-    '<path d="M139 28c12 0 21 8 21 19s-9 19-21 19-21-9-21-19 9-19 21-19Z"/>' +
-    '<path d="M118 38c-16 16-26 40-28 66-2 22 2 40 8 54M122 34c-20 14-34 36-38 62" opacity=".9"/>' +
-    '<path d="M158 40c10 10 18 24 22 40 4 18 2 34-2 46" opacity=".85"/>' +
-    '<path d="M130 46h.01M146 46h.01" stroke-width="2.2"/><path d="M135 56c2 2 4 2 6 0" opacity=".8"/>' +
-    '<path d="M136 66v10M150 66v10"/>' +
-    '<path d="M136 76c-12 3-20 12-24 26M150 76c7 2 12 6 16 12"/>' +
-    '<path d="M112 102c-4 14-3 26 1 38M166 88c12 2 22 8 28 18 6 12 6 26 0 40"/>' +
-    '<path d="M114 140c10 7 22 11 34 11 10 0 19-3 27-8" opacity=".8"/>' +
-    '<path d="M144 152c8 14 20 24 35 30M146 158c-2 18-2 36 0 52"/>' +
-    '<path d="M178 184c14 4 26 14 34 28-16 2-30 10-40 22-2-18-4-36-2-52Z" opacity=".9"/>' +
-    '<path d="M148 208c-12 2-22 10-28 22M150 218c6 10 14 18 24 22" opacity=".7"/>' +
-    '<g opacity=".45"><path d="M140 172q12 9 24 0M136 184q16 10 32 0M133 196q18 11 36 0"/></g>' +
-    '<circle cx="70" cy="120" r="3" opacity=".55"/><circle cx="60" cy="140" r="5" opacity=".4"/><circle cx="78" cy="152" r="2.2" opacity=".5"/>' +
-    '</svg>';
+    '<img class="figure__image" src="' + assetRoot + 'mermaid.webp" width="800" height="600" loading="lazy" decoding="async" alt="版画风格的海景，美人鱼坐在浪间的礁石上">';
 
   /* 日本谱系：人鱼（鱼身人头，长发） */
   FIGURES['ningyo'] =
@@ -142,4 +98,6 @@
     '</svg>';
 
   global.JR_FIGURES = FIGURES;
+  global.JR_FIGURE_ASSET_ROOT = assetRoot;
+  global.JR_GENERATED_FIGURES = ['jiao-ren', 'siren-bird', 'mermaid'];
 })(window);

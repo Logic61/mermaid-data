@@ -278,7 +278,7 @@
   };
   JR.icon = function (name) { return ICONS[name] || ''; };
 
-  /* ---------------------------------------------------------------- 图版（SVG，由 js/figures.js 注册） */
+  /* ---------------------------------------------------------------- 图版（由 js/figures.js 注册） */
   JR.figure = function (name, cls) {
     if (!name || !global.JR_FIGURES || !global.JR_FIGURES[name]) return '';
     return '<span class="figure ' + (cls || '') + '">' + global.JR_FIGURES[name] + '</span>';

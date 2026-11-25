@@ -317,7 +317,8 @@
           '<span class="term-legend__item"><span class="term-legend__line term-legend__line--dashed"></span>译名 / 命名借用</span>' +
         '</div>' +
       '</div>' +
-      '<p class="caption term-graph__hint">实线表示同一语言传统内的名称演化或合流，虚线表示跨语言的译名、音译与命名借用，线色沿用源流颜色。节点右下角数字为相关条目数，点击节点可筛选下方条目，再次点击可取消选择。</p>' +
+      '<p class="caption term-graph__hint">右上角的数字表示相关条目数。点按节点筛选下方条目，再点一次取消。</p>' +
+      '<p class="caption term-scroll-hint">横向滑动查看完整谱系。</p>' +
       '<div class="term-scroll" tabindex="0" role="region" aria-label="名称谱系图：中国、地中海、日本与朝鲜三条源流，加上科学旁支与合流区。按 Tab 可逐个聚焦名称节点。">' +
         '<div class="term-canvas" style="width:' + CANVAS_W + 'px;height:' + CANVAS_H + 'px">' +
           edgeSVG() +
@@ -533,13 +534,12 @@
   /* ------------------------------------------------------------ 页面片段 */
   function headHTML(rowsCount) {
     return '<header class="page-head term-head">' +
-      '<p class="kicker">名称</p>' +
       '<div class="page-head__row">' +
         '<div class="term-head__main">' +
           '<h1 class="display display--sm" id="term-title">名称谱系</h1>' +
-          '<p class="lede mt-4">名称会滑动：鲛人、人鱼、美人鱼、塞壬、海妖、Siren、mermaid、人魚、マーメイド、인어，以及作为科学旁支的儒艮与海牛目。下图按三条源流与一个合流区排布名称关系，节点可点击筛选条目；下方另有译名对照表与概念辨析。</p>' +
+          '<p class="lede">沿中国、地中海与日韩三条源流，查看鲛人、塞壬与美人鱼等名称如何演化、互译与合流。</p>' +
         '</div>' +
-        '<p class="meta term-head__meta">名称节点 ' + NODES.length + ' 个<br>译名归并 ' + rowsCount + ' 组<br>统计依据 term 字段</p>' +
+        '<p class="meta term-head__meta">' + NODES.length + ' 个名称节点 · ' + rowsCount + ' 组译名</p>' +
       '</div>' +
       '</header>';
   }

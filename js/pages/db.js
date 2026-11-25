@@ -244,7 +244,7 @@
     return '<div class="db-searchrow">' +
       '<div class="search db-search">' + JR.icon('search') +
       '<label class="sr-only" for="db-q">关键词检索</label>' +
-      '<input class="input" id="db-q" type="search" data-db-q autocomplete="off" placeholder="检索题名、作品、异名、摘要、标签与引文" value="' + JR.escAttr(st.q) + '">' +
+      '<input class="input" id="db-q" type="search" data-db-q autocomplete="off" placeholder="搜索题名、异名、引文等" value="' + JR.escAttr(st.q) + '">' +
       '</div>' +
       '<div class="db-searchrow__actions">' +
       '<label class="db-sort-label" for="db-sort">排序</label>' +
@@ -270,6 +270,7 @@
     var cultures = (S.cultures || []).map(function (c) { return { id: c.id, label: c.label }; });
     var mediums = (S.mediums || []).map(function (m) { return { id: m.id, label: m.label }; });
     var eras = ERAS.map(function (e) { return { id: e.id, label: e.label, desc: e.range }; });
+    var coded = st.traits.length + st.narratives.length;
 
     return '<div class="db-filters">' +
       '<div class="db-filter-grid">' +
@@ -278,10 +279,12 @@
       facetRowHtml('年代', chipListHtml(eras, 'era', st, true)) +
       facetRowHtml('媒介', chipListHtml(mediums, 'medium', st, false)) +
       '</div>' +
+      '<details class="db-code-filters"' + (coded ? ' open' : '') + '>' +
+      '<summary>形态、能力与叙事筛选<span class="db-code-filters__active" data-db-coded' + (coded ? '' : ' hidden') + '>已选 ' + coded + ' 项</span></summary>' +
       facetRowHtml('形态', chipListHtml(SHAPE_TRAITS, 'traits', st, true), 'db-filter-row--wide') +
       facetRowHtml('能力', chipListHtml(ABILITY_TRAITS, 'traits', st, true), 'db-filter-row--wide') +
       facetRowHtml('叙事', chipListHtml(NARRATIVE_TRAITS, 'narratives', st, true), 'db-filter-row--wide') +
-      '</div>';
+      '</details></div>';
   }
 
   function resultBarHtml(listLength, st) {
@@ -451,7 +454,7 @@
       var st = readState(params);
       var cmpIds = JR.compare.get();
       var head = '<section class="wrap section section--page db-page">' +
-        '<h1 class="sr-only">资料库</h1>' +
+        '<h1 class="db-title">资料库</h1>' +
         (JR.entries.length ? '<div class="db-tools">' + searchRowHtml(st) + filtersHtml(st) + '</div>' : '');
 
       if (!JR.entries.length) {
@@ -522,6 +525,12 @@
 
       function syncResultBar() {
         var active = activeFilterCount(st);
+        var coded = st.traits.length + st.narratives.length;
+        var codedLabel = root.querySelector('[data-db-coded]');
+        if (codedLabel) {
+          codedLabel.textContent = '已选 ' + coded + ' 项';
+          codedLabel.hidden = coded === 0;
+        }
         var hint = root.querySelector('[data-db-hint]');
         if (hint) hint.textContent = active ? '已启用 ' + active + ' 组筛选' : '可组合筛选，结果实时更新';
         var reset = root.querySelector('[data-db-reset]');

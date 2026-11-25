@@ -1,7 +1,7 @@
 /* ==========================================================================
    鲛人研究数据库 · 时间轴页面（#/timeline）
    依赖：js/core.js（window.JR）、data/schema.js
-   结构：四条谱系泳道 + 线性年代横轴；render 只返回 HTML 字符串，
+   结构：图文编年、四条谱系泳道与条目列表；render 只返回 HTML 字符串，
          筛选、浮层、focus 定位等交互全部在 mount 中绑定并在 unmount 清理。
    ========================================================================== */
 (function (global) {
@@ -13,6 +13,40 @@
   /* ------------------------------------------------------------ 常量 */
   var CULTURES = ['中国', '西方', '东亚', '跨文化'];
   var KINDS = ['ancient', 'translation', 'modern'];
+  var VIEWS = [
+    { id: 'story', label: '图文编年' },
+    { id: 'chart', label: '时序图' },
+    { id: 'list', label: '条目列表' }
+  ];
+  var TOPICS = [
+    { id: '', label: '全部' },
+    { id: 'b_tears_pearl', label: '泣珠' },
+    { id: 'm_bird_body', label: '人首鸟身' },
+    { id: 'translation', label: '译名与译本' }
+  ];
+  var CHAPTERS = [
+    {
+      id: 'early', start: -800, end: 499, dates: '前 800 年至 499 年', title: '早期记载与图像',
+      featured: ['gl-homer-odyssey-sirens', 'gl-odysseus-siren-vase', 'cn-soushenji-jiaoren']
+    },
+    {
+      id: 'medieval', start: 500, end: 1799, dates: '500 至 1799 年', title: '文献与图像的流变',
+      featured: ['gl-bern-physiologus-siren', 'cn-taipingyulan-jiaoren', 'cn-haicuotu-renyu']
+    },
+    {
+      id: 'modern', start: 1800, end: 1949, dates: '1800 至 1949 年', title: '童话与近代图像',
+      featured: ['gl-andersen-little-mermaid-1837', 'cn-dianshizhai-lingyu', 'gl-copenhagen-little-mermaid-1913']
+    },
+    {
+      id: 'contemporary', start: 1950, end: 2026, dates: '1950 年以来', title: '译名与大众媒介',
+      featured: ['cn-andersen-haide-nver', 'gl-miyazaki-ponyo-2008', 'gl-korean-blue-sea-2016']
+    }
+  ];
+  var STORY_ART = {
+    'gl-odysseus-siren-vase': 'siren-bird',
+    'cn-taipingyulan-jiaoren': 'jiao-ren',
+    'gl-andersen-little-mermaid-1837': 'mermaid'
+  };
   var SCALES = {
     long: { id: 'long', label: '长时段', min: -800, max: 2026, span: '约公元前 800 至 2026' },
     modern: { id: 'modern', label: '近现代', min: 1800, max: 2026, span: '1800 至 2026' }
@@ -86,21 +120,27 @@
   }
   function normalize(params) {
     var p = params || {};
+    var view = VIEWS.some(function (item) { return item.id === p.view; }) ? p.view :
+      (p.focus || p.scale === 'modern' || p.culture || p.kind ? 'chart' : 'story');
     return {
       scale: p.scale === 'modern' ? 'modern' : 'long',
       cultures: parseList(p.culture, CULTURES),
       kinds: parseList(p.kind, KINDS),
-      view: 'chart',
+      view: view,
+      topic: TOPICS.some(function (item) { return item.id === p.topic; }) ? p.topic : '',
       focus: str(p.focus)
     };
   }
   function isDefaultFilters(st) {
-    return st.cultures.length === CULTURES.length && st.kinds.length === KINDS.length;
+    return !st.topic && st.cultures.length === CULTURES.length && st.kinds.length === KINDS.length;
   }
   function syncURL() {
     if (!ctx || typeof JR.replaceQuery !== 'function') return;
     var st = ctx.state;
     JR.replaceQuery({
+      view: st.view,
+      topic: st.topic,
+      focus: st.focus,
       scale: st.scale === 'long' ? '' : 'modern',
       culture: serializeList(st.cultures, CULTURES),
       kind: serializeList(st.kinds, KINDS)
@@ -130,6 +170,21 @@
     return list.filter(function (e) {
       return st.cultures.indexOf(cultureOf(e)) >= 0 && st.kinds.indexOf(kindOf(e)) >= 0;
     });
+  }
+  function resultData(st) {
+    var axis = axisFor(st.view === 'story' ? SCALES.long : SCALES[st.scale]);
+    var pool = poolEntries(axis).filter(function (entry) {
+      if (!st.topic) return true;
+      return st.topic === 'translation'
+        ? kindOf(entry) === 'translation'
+        : arr(entry.traits).indexOf(st.topic) >= 0;
+    });
+    return {
+      axis: axis,
+      summary: dataSummary(axis),
+      pool: pool,
+      entries: st.view === 'story' ? pool : applyFilters(pool, st)
+    };
   }
   function centuryLabel(c) {
     return c < 0 ? '前' + Math.abs(c) + '世纪' : c + '世纪';
@@ -256,6 +311,65 @@
       '</li>';
   }
 
+  /* ------------------------------------------------------------ 图文编年 */
+  function shorten(text, limit) {
+    var clean = str(text).trim().replace(/\s+/g, ' ');
+    var characters = Array.from(clean);
+    return characters.length > limit ? characters.slice(0, limit).join('').trimEnd() + '…' : clean;
+  }
+  function storyRecordHTML(entry) {
+    var art = STORY_ART[entry.id] ? JR.figure(STORY_ART[entry.id]) : '';
+    var excerpt = str(entry.excerpt).trim();
+    var hasExcerpt = excerpt && entry.medium !== '图像';
+    var translation = hasExcerpt ? shorten(entry.translation, 108) : '';
+    var body = hasExcerpt
+      ? '<blockquote class="tl-record__excerpt">' + esc(shorten(excerpt, 120)) + '</blockquote>'
+      : '<p class="tl-record__summary">' + esc(shorten(str(entry.summary).replace(/本条目以作品信息为主，无原文引文。?\s*$/, ''), 112)) + '</p>';
+
+    return '<li class="tl-record">' +
+      '<p class="tl-record__date mono">' + esc(dateLine(entry)) + '</p>' +
+      '<article class="tl-record__body' + (art ? ' tl-record__body--illustrated' : '') + '">' +
+        '<div class="tl-record__text">' +
+          '<p class="tl-record__meta">' + esc(cultureOf(entry)) + ' · ' + esc(JR.kindLabel(kindOf(entry))) + '</p>' +
+          '<h3><a href="#/entry/' + JR.param(entry.id) + '">' + esc(entry.title) + '</a></h3>' +
+          body +
+          (translation ? '<p class="tl-record__translation">' + esc(translation) + '</p>' : '') +
+        '</div>' +
+        (art ? '<figure class="tl-record__art">' + art + '<figcaption class="caption">AI 创作示意</figcaption></figure>' : '') +
+      '</article></li>';
+  }
+  function storyHTML(list, st) {
+    var chapters = CHAPTERS.map(function (chapter) {
+      var entries = list.filter(function (entry) { return entry.year >= chapter.start && entry.year <= chapter.end; });
+      return { chapter: chapter, entries: entries.sort(function (a, b) { return a.year - b.year; }) };
+    });
+    var index = chapters.map(function (group) {
+      var chapter = group.chapter;
+      return '<button type="button" class="tl-chapter-link" data-tl-jump="' + chapter.id + '"' +
+        (group.entries.length ? '' : ' disabled') + '>' +
+        '<span class="tl-chapter-link__date">' + esc(chapter.dates) + '</span>' +
+        '<span class="tl-chapter-link__title">' + esc(chapter.title) + '</span>' +
+        '<span class="tl-chapter-link__count">' + group.entries.length + ' 条</span></button>';
+    }).join('');
+    var sections = chapters.filter(function (group) { return group.entries.length; }).map(function (group) {
+      var chapter = group.chapter;
+      var featured = st.topic ? group.entries : group.entries.filter(function (entry) { return chapter.featured.indexOf(entry.id) >= 0; });
+      if (!featured.length) featured = group.entries.slice(0, 3);
+      var rest = group.entries.filter(function (entry) { return featured.indexOf(entry) < 0; });
+      return '<section class="tl-chapter" aria-labelledby="tl-chapter-' + chapter.id + '">' +
+        '<header class="tl-chapter__head">' +
+          '<p class="tl-chapter__dates mono">' + esc(chapter.dates) + '</p>' +
+          '<h2 id="tl-chapter-' + chapter.id + '" tabindex="-1">' + esc(chapter.title) + '</h2>' +
+        '</header>' +
+        '<ol class="tl-chapter__records">' + featured.map(storyRecordHTML).join('') + '</ol>' +
+        (rest.length ? '<details class="tl-chapter__more"><summary>本时期其余 ' + rest.length +
+          ' 条</summary><ul class="tl-items">' + rest.map(listItemHTML).join('') + '</ul></details>' : '') +
+        '</section>';
+    }).join('');
+
+    return '<nav class="tl-chapter-index" aria-label="跳到对应时期">' + index + '</nav>' + sections;
+  }
+
   /* ------------------------------------------------------------ 图表 HTML */
   function axisHTML(axis) {
     var unit = axis.id === 'long' ? '世纪' : '年代';
@@ -287,7 +401,7 @@
         '</div>'
     };
   }
-  function chartHTML(list, st, axis, focusId) {
+  function chartHTML(list, st, axis) {
     var lanes = laneData(list, axis);
     var axisParts = axisHTML(axis);
     var laneHTML = '';
@@ -295,7 +409,7 @@
       var lane = lanes[c];
       var marks = '';
       lane.list.forEach(function (e) {
-        marks += markerHTML(e, lane, !!(focusId && e.id === focusId));
+        marks += markerHTML(e, lane, !!(st.focus && e.id === st.focus));
       });
       laneHTML += '<div class="tl-lane">' +
         '<div class="tl-lane__label">' +
@@ -310,7 +424,7 @@
         '</div>' +
         '</div>';
     });
-    return '<p class="caption tl-scroll-hint">窄屏下可横向滚动查看完整时间轴，也可切换到列表视图。</p>' +
+    return '<p class="caption tl-scroll-hint">横向滑动查看完整时间轴，或切换为列表。</p>' +
       '<div class="tl-scroll" role="region" tabindex="0" aria-label="时间轴图：' + esc(SCALES[st.scale].label) + '，四条泳道依次为中国、西方、东亚、跨文化。每个标记可打开对应条目；按 Tab 可逐个聚焦。">' +
         '<div class="tl-chart">' +
           axisParts.markup +
@@ -323,7 +437,7 @@
     if (axis.id === 'long') return '横轴为世纪，每格 100 年，深线为公元 1 世纪分界；标记位置按年份线性映射。';
     return '横轴为年代，每格 25 年，深线为 19、20、21 世纪分界；标记位置按年份线性映射。';
   }
-  function listHTML(list, axis, openAll) {
+  function listHTML(list, openAll) {
     if (!list.length) return '';
     var groups = [];
     var map = {};
@@ -346,7 +460,8 @@
         '</details>';
     }).join('') + '</div>';
   }
-  function countHTML(filteredLen, summary) {
+  function countHTML(filteredLen, summary, st) {
+    if (st.view === 'story') return st.topic ? '共 <strong>' + filteredLen + '</strong> 条相关记录' : '';
     var extra = [];
     if (summary.undated) extra.push('无年代 ' + summary.undated + ' 条');
     if (summary.outside) extra.push('尺度外 ' + summary.outside + ' 条');
@@ -373,8 +488,8 @@
       }
     } else {
       title = '没有符合筛选的条目';
-      text = '当前谱系与类型筛选下没有结果。可以重置筛选，或切换到列表视图逐条浏览。';
-      action = '<button type="button" class="btn btn--ghost btn--sm" data-tl-reset>重置筛选</button>';
+      text = '可以选择其他线索，或清除当前筛选。';
+      action = '<button type="button" class="btn btn--ghost btn--sm" data-tl-reset>清除筛选</button>';
     }
     return '<div class="empty tl-empty">' +
       '<p class="empty__title">' + esc(title) + '</p>' +
@@ -384,19 +499,36 @@
   }
 
   /* ------------------------------------------------------------ 页面片段 */
-  function headHTML(st, summary) {
+  function headHTML(st) {
+    var views = VIEWS.map(function (item) {
+      return '<button type="button" class="btn btn--sm tl-seg__btn" data-tl-view="' + item.id + '" aria-pressed="' +
+        (st.view === item.id) + '">' + esc(item.label) + '</button>';
+    }).join('');
     return '<header class="page-head tl-head">' +
-      '<p class="kicker">编年</p>' +
       '<div class="page-head__row">' +
         '<div class="tl-head__main">' +
           '<h1 class="display display--sm" id="tl-title">时间轴</h1>' +
-          '<p class="lede mt-4">这里是鲛人、人鱼、美人鱼、塞壬等形象在年代上的编年视图。四条泳道按谱系分开，每个标记是一条已收条目，横轴按年份线性排布，同年或年代相邻的标记会在道内分层错开。悬停或聚焦可查看摘要，点击进入条目详情。</p>' +
+          '<p class="lede">沿年代读鲛人、塞壬与美人鱼的古籍、图像和译本。</p>' +
         '</div>' +
-        '<p class="meta tl-head__meta">所收条目 ' + summary.all + ' 条<br>可定位年代 ' + summary.dated + ' 条<br>当前尺度 ' + esc(SCALES[st.scale].span) + '</p>' +
+        '<div class="tl-head__actions">' +
+          '<div class="btn-group tl-seg" role="group" aria-label="时间轴视图">' + views + '</div></div>' +
       '</div>' +
       '</header>';
   }
-  function controlsHTML(st, pool, summary, filteredLen) {
+  function topicsHTML(st, data) {
+    var topics = TOPICS.map(function (topic) {
+      return '<button type="button" class="chip tl-topic" data-tl-topic="' + topic.id + '" aria-pressed="' +
+        (st.topic === topic.id) + '">' + esc(topic.label) + '</button>';
+    }).join('');
+    return '<div class="tl-topicbar">' +
+      '<div class="tl-topicbar__choices" role="group" aria-label="按线索筛选">' +
+        '<span class="field-label tl-topicbar__label">按线索读</span>' + topics +
+      '</div>' +
+      '<p class="count tl-count" data-tl-count role="status" aria-live="polite">' +
+        countHTML(data.entries.length, data.summary, st) +
+      '</p></div>';
+  }
+  function controlsHTML(st, pool) {
     var cultureCounts = {};
     var kindCounts = {};
     pool.forEach(function (e) {
@@ -418,7 +550,7 @@
       return '<button type="button" class="chip tl-chip" data-tl-kind="' + k + '" aria-pressed="' + (st.kinds.indexOf(k) >= 0 ? 'true' : 'false') + '">' +
         esc(JR.kindLabel(k)) + '<span class="chip__count">' + (kindCounts[k] || 0) + '</span></button>';
     }).join('');
-    return '<div class="tl-controls">' +
+    return '<div class="tl-controls" data-tl-technical' + (st.view === 'story' ? ' hidden' : '') + '>' +
       '<div class="tl-controls__row">' +
         '<span class="field-label tl-controls__label" id="tl-scale-label">时间尺度</span>' +
         '<div class="btn-group tl-seg" role="group" aria-labelledby="tl-scale-label">' + scaleButtons + '</div>' +
@@ -433,23 +565,13 @@
         '<div class="chip-list" role="group" aria-labelledby="tl-kind-label" data-tl-kinds>' + kindChips + '</div>' +
         '<button type="button" class="btn btn--ghost btn--sm tl-reset" data-tl-reset' + (isDefaultFilters(st) ? ' disabled' : '') + '>重置筛选</button>' +
       '</div>' +
-      '<div class="toolbar tl-toolbar">' +
-        '<p class="count tl-count" data-tl-count role="status" aria-live="polite">' + countHTML(filteredLen, summary) + '</p>' +
-        '<div class="toolbar__group">' +
-          '<span class="field-label tl-view-label" id="tl-view-label">视图</span>' +
-          '<div class="btn-group tl-seg" role="group" aria-labelledby="tl-view-label">' +
-            '<button type="button" class="btn btn--sm tl-seg__btn" data-tl-view="chart" aria-pressed="' + (st.view === 'chart' ? 'true' : 'false') + '">时序图' + JR.icon('timeline') + '</button>' +
-            '<button type="button" class="btn btn--sm tl-seg__btn" data-tl-view="list" aria-pressed="' + (st.view === 'list' ? 'true' : 'false') + '">列表' + JR.icon('list') + '</button>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
       '</div>';
   }
-  function legendHTML() {
+  function legendHTML(visible) {
     var cultureItems = CULTURES.map(function (c) {
       return '<span class="tl-legend__item"><span class="dot ' + dotClass(c) + '" aria-hidden="true"></span>' + esc(c) + '</span>';
     }).join('');
-    return '<div class="tl-legend panel panel--flat">' +
+    return '<div class="tl-legend panel panel--flat" data-tl-legend' + (visible ? '' : ' hidden') + '>' +
       '<div class="tl-legend__group">' +
         '<span class="tl-legend__title">谱系</span>' + cultureItems +
       '</div>' +
@@ -463,35 +585,33 @@
       '</div>';
   }
   function footnoteHTML() {
-    return '<p class="caption tl-footnote">年份取条目的 year 字段，估算取中值；无年代或落在尺度外的条目暂不在图中定位，可在 <a class="link" href="#/db">资料库</a> 中检索。列表视图按世纪分组，是时序图的文本替代路径。</p>';
+    return '<p class="caption tl-footnote">按条目编码年代排序，具体日期与年代范围见各条目。' +
+      '完整出处及年代待考的材料可在 <a class="link" href="#/db">资料库</a> 中查阅。</p>';
   }
 
   /* ------------------------------------------------------------ 渲染 */
   function renderPage(params) {
     var st = normalize(params);
-    var axis = axisFor(SCALES[st.scale]);
-    var summary = dataSummary(axis);
-    var pool = poolEntries(axis);
-    var filtered = applyFilters(pool, st);
-    var empty = filtered.length === 0;
-    var focusId = str(params && params.focus);
+    var data = resultData(st);
+    var empty = data.entries.length === 0;
     return '<section class="wrap section section--page tl-page" aria-labelledby="tl-title">' +
-      headHTML(st, summary) +
-      controlsHTML(st, pool, summary, filtered.length) +
-      '<div class="tl-results">' +
-        '<div class="tl-chart-host" data-tl-chart' + (empty ? ' hidden' : '') + '>' +
-          (empty ? '' : chartHTML(filtered, st, axis, focusId)) +
-        '</div>' +
-        '<div class="tl-list-host" data-tl-list hidden>' +
-          (empty ? '' : listHTML(filtered, axis, false)) +
-        '</div>' +
-        '<div class="tl-empty-host" data-tl-empty' + (empty ? '' : ' hidden') + '>' +
-          (empty ? emptyHTML(summary, st) : '') +
-        '</div>' +
-      '</div>' +
-      legendHTML() +
+      headHTML(st) +
+      topicsHTML(st, data) +
+      controlsHTML(st, data.pool) +
+      '<div class="tl-results" data-tl-results>' + (empty ? emptyHTML(data.summary, st) : contentHTML(data, st, false)) + '</div>' +
+      legendHTML(!empty && st.view === 'chart') +
       footnoteHTML() +
       '</section>';
+  }
+
+  function contentHTML(data, st, openList) {
+    if (st.view === 'chart') {
+      return '<div class="tl-chart-host" data-tl-chart>' + chartHTML(data.entries, st, data.axis) + '</div>';
+    }
+    if (st.view === 'list') {
+      return '<div data-tl-list>' + listHTML(data.entries, openList) + '</div>';
+    }
+    return '<div class="tl-story" data-tl-story>' + storyHTML(data.entries, st) + '</div>';
   }
 
   /* ------------------------------------------------------------ 浮层 */
@@ -551,19 +671,16 @@
     var st = ctx.state;
     var root = ctx.root;
     var refs = ctx.refs;
-    var axis = axisFor(SCALES[st.scale]);
-    var summary = dataSummary(axis);
-    var pool = poolEntries(axis);
-    var filtered = applyFilters(pool, st);
-    var empty = filtered.length === 0;
+    var data = resultData(st);
+    var empty = data.entries.length === 0;
     hideTip();
-    refs.chart.innerHTML = empty ? '' : chartHTML(filtered, st, axis, '');
-    refs.list.innerHTML = empty ? '' : listHTML(filtered, axis, ctx.narrow);
-    refs.empty.innerHTML = empty ? emptyHTML(summary, st) : '';
-    refs.chart.hidden = empty || st.view !== 'chart';
-    refs.list.hidden = empty || st.view !== 'list';
-    refs.empty.hidden = !empty;
-    refs.count.innerHTML = countHTML(filtered.length, summary);
+    refs.results.innerHTML = empty ? emptyHTML(data.summary, st) : contentHTML(data, st, ctx.narrow);
+    refs.technical.hidden = st.view === 'story';
+    refs.legend.hidden = empty || st.view !== 'chart';
+    refs.count.innerHTML = countHTML(data.entries.length, data.summary, st);
+    eachNode(root.querySelectorAll('[data-tl-topic]'), function (btn) {
+      btn.setAttribute('aria-pressed', btn.getAttribute('data-tl-topic') === st.topic ? 'true' : 'false');
+    });
     eachNode(root.querySelectorAll('[data-tl-scale]'), function (btn) {
       btn.setAttribute('aria-pressed', btn.getAttribute('data-tl-scale') === st.scale ? 'true' : 'false');
     });
@@ -572,7 +689,7 @@
     });
     var cultureCounts = {};
     var kindCounts = {};
-    pool.forEach(function (e) {
+    data.pool.forEach(function (e) {
       var c = cultureOf(e);
       var k = kindOf(e);
       cultureCounts[c] = (cultureCounts[c] || 0) + 1;
@@ -604,10 +721,30 @@
     if (!ctx) return;
     var st = ctx.state;
     var target = ev.target;
+    var jump = closest(target, '[data-tl-jump]');
+    if (jump) {
+      var chapterTitle = document.getElementById('tl-chapter-' + jump.getAttribute('data-tl-jump'));
+      if (chapterTitle) {
+        chapterTitle.focus({ preventScroll: true });
+        chapterTitle.parentElement.scrollIntoView({ block: 'start' });
+      }
+      return;
+    }
     var mark = closest(target, '.tl-mark');
     if (mark) {
       var id = mark.getAttribute('data-entry-id');
       if (id) JR.go('entry/' + encodeURIComponent(id));
+      return;
+    }
+    var topicBtn = closest(target, '[data-tl-topic]');
+    if (topicBtn) {
+      var topic = topicBtn.getAttribute('data-tl-topic');
+      if (st.topic !== topic) {
+        st.topic = topic;
+        st.focus = '';
+        syncURL();
+        paint();
+      }
       return;
     }
     var scaleBtn = closest(target, '[data-tl-scale]');
@@ -640,6 +777,7 @@
     if (closest(target, '[data-tl-reset]')) {
       st.cultures = CULTURES.slice();
       st.kinds = KINDS.slice();
+      st.topic = '';
       st.focus = '';
       syncURL();
       paint();
@@ -648,8 +786,10 @@
     var viewBtn = closest(target, '[data-tl-view]');
     if (viewBtn) {
       var view = viewBtn.getAttribute('data-tl-view');
-      if ((view === 'chart' || view === 'list') && st.view !== view) {
+      if (st.view !== view) {
         st.view = view;
+        st.focus = '';
+        syncURL();
         paint();
       }
     }
@@ -689,7 +829,7 @@
       if (entry) JR.toast('「' + str(entry.title) + '」不在当前时间尺度或筛选范围内');
       return;
     }
-    try { marker.scrollIntoView({ block: 'center', inline: 'nearest' }); }
+    try { marker.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }); }
     catch (err) { try { marker.scrollIntoView(); } catch (err2) {} }
     var scroll = root.querySelector('.tl-scroll');
     if (scroll) {
@@ -716,13 +856,13 @@
     mount: function (root, params) {
       var st = normalize(params || {});
       var refs = {
-        chart: root.querySelector('[data-tl-chart]'),
-        list: root.querySelector('[data-tl-list]'),
-        empty: root.querySelector('[data-tl-empty]'),
+        results: root.querySelector('[data-tl-results]'),
+        technical: root.querySelector('[data-tl-technical]'),
+        legend: root.querySelector('[data-tl-legend]'),
         count: root.querySelector('[data-tl-count]'),
         reset: root.querySelector('.tl-reset')
       };
-      if (!refs.chart || !refs.count) return;
+      if (!refs.results || !refs.count) return;
       ctx = { root: root, state: st, refs: refs, narrow: isNarrow(), tip: null, pulseTimer: null, cleanups: [] };
       function bind(el, type, fn) {
         el.addEventListener(type, fn);
@@ -744,11 +884,10 @@
           global.removeEventListener('resize', onViewport);
         });
       }
-      if (st.focus) {
-        applyFocus(st.focus);
-        st.focus = '';
-      } else if (ctx.narrow) {
-        st.view = 'list';
+      if (st.focus && st.view === 'chart') {
+        var focusFrame = global.requestAnimationFrame(function () { applyFocus(st.focus); });
+        ctx.cleanups.push(function () { global.cancelAnimationFrame(focusFrame); });
+      } else if (ctx.narrow && st.view === 'list') {
         paint();
       }
     },

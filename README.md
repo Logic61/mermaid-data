@@ -41,7 +41,8 @@
 ├─ 鲛人研究数据库_条目表_2026-10.xlsx  离线数据表（条目、编码矩阵、译名、书目、说明）
 ├─ .github/workflows/deploy.yml      GitHub Pages 自动部署工作流
 ├─ css/                              基础样式（base/components）与各页面私有样式
-├─ js/                               核心工具、页面脚本、内联 SVG 图版（figures.js）
+├─ js/                               核心工具、页面脚本、图版注册（figures.js）
+├─ assets/                           本地 WebP 插画与海雾背景
 ├─ data/                             数据层：schema.js、entries-cn.js、entries-global.js、bibliography.js
 ├─ docs/                             研究文档与数据审校报告
 └─ tools/                            自测、浏览器交互测试与数据导出脚本
@@ -105,7 +106,7 @@ chrome --headless=new --window-size=1440,900 --virtual-time-budget=20000 \
 `.github/workflows/deploy.yml` 在推送到 `main` 或手动触发（Actions → Deploy to GitHub Pages → Run workflow）时执行：
 
 1. 运行 `node tools/check.js` 与 `node tools/render-check.js`，数据或渲染校验失败则停止部署，不发布有问题的版本；
-2. 将站点所需文件（`index.html`、`css/`、`js/`、`data/`、`docs/`、`.nojekyll`）整理为 `_site`，测试脚本与临时文件不进入站点；
+2. 将站点所需文件（`index.html`、`assets/`、`css/`、`js/`、`data/`、`docs/`、`.nojekyll`）整理为 `_site`，测试脚本与临时文件不进入站点；
 3. 通过 `peaceiris/actions-gh-pages` 把 `_site` 发布到 `gh-pages` 分支，再由 GitHub Pages 从该分支自动构建发布。
 
 本仓库的 Pages 发布源已设置为 `gh-pages` 分支；日常更新只需 `git push origin main`，无需再手动操作。若日后重建仓库，请在 Settings → Pages → Build and deployment 中将 Source 设为「Deploy from a branch」并选择 `gh-pages` 分支；首次部署后同样会自动生效。
@@ -117,6 +118,7 @@ chrome --headless=new --window-size=1440,900 --virtual-time-budget=20000 \
 - 引用本数据库时，请注明项目全称与数据更新日期（见 `data/schema.js` 中 `meta.dataUpdated`），并核对该条目的 `confidence` 与 `sources`。
 - 条目中的古籍引文属研究性引用；仍在版权保护期内的作品只作简短引用，不提供整段文本、剧照或插图。
 - 参考书目为研究入口，不是引文版本凭证；正式引用须回到原书核对版次、卷次与页码。
+- 站内 AI 创作插画用于形态示意。画面设定和生成提示词见 [图像生成说明](docs/图像生成说明.md)。
 - 本项目是研究辅助工具，不提供定论。发现事实或编码问题，请记录在 `docs/data-review.md`，不要直接改动他人维护的数据文件。
 
 ## 已知限制

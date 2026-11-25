@@ -33,10 +33,10 @@
   }
 
   function statBlock(num, label, sub) {
-    return '<div class="stat">' +
-      '<span class="stat__num">' + JR.esc(num) + '</span>' +
-      '<span class="stat__label">' + JR.esc(label) + '</span>' +
-      (sub ? '<span class="caption">' + JR.esc(sub) + '</span>' : '') +
+    return '<div class="home-stat">' +
+      '<dt>' + JR.esc(label) + '</dt>' +
+      '<dd class="home-stat__value">' + JR.esc(num) + '</dd>' +
+      '<dd class="caption">' + JR.esc(sub) + '</dd>' +
       '</div>';
   }
 
@@ -44,42 +44,33 @@
   function histogram() {
     var years = JR.entries.map(function (e) { return e.year; }).filter(function (y) { return typeof y === 'number'; });
     if (years.length < 2) return '';
-    var min = Math.floor(Math.min.apply(null, years) / 100) * 100;
-    var max = Math.ceil((Math.max.apply(null, years) + 1) / 100) * 100;
-    var binSize = 100;
-    var bins = [];
-    for (var s = min; s < max; s += binSize) bins.push({ start: s, count: 0 });
-    years.forEach(function (y) {
-      var idx = Math.floor((y - min) / binSize);
-      if (idx < 0) idx = 0;
-      if (idx >= bins.length) idx = bins.length - 1;
-      bins[idx].count++;
-    });
+    var centuries = years.map(function (y) { return Math.floor((y > 0 ? y - 1 : y) / 100); });
+    var min = Math.min.apply(null, centuries);
+    var max = Math.max.apply(null, centuries);
+    var bins = Array.from({ length: max - min + 1 }, function (_, i) { return { century: min + i, count: 0 }; });
+    centuries.forEach(function (c) { bins[c - min].count++; });
     var maxCount = Math.max.apply(null, bins.map(function (b) { return b.count; }));
-    var W = 720, H = 150, padB = 22, padT = 8;
+    var W = 720, H = 160;
     var bw = W / bins.length;
     var bars = bins.map(function (b, i) {
-      var h = maxCount ? (b.count / maxCount) * (H - padB - padT) : 0;
-      var x = i * bw + bw * 0.16;
-      var w = bw * 0.68;
-      var y = H - padB - h;
-      return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(h, 0.8).toFixed(1) +
-        '" fill="var(--teal)" opacity="' + (b.count ? 0.82 : 0.16) + '"><title>' + JR.esc(binLabel(b.start)) + '：' + b.count + ' 条</title></rect>';
+      if (!b.count) return '';
+      var h = b.count / maxCount * H;
+      return '<rect x="' + (i * bw + bw * 0.15).toFixed(2) + '" y="' + (H - h).toFixed(2) +
+        '" width="' + (bw * 0.7).toFixed(2) + '" height="' + h.toFixed(2) + '">' +
+        '<title>' + binLabel(b.century) + '：' + b.count + ' 条</title></rect>';
     }).join('');
-    var labels = bins.map(function (b, i) {
-      if (i % 5 !== 0 && i !== bins.length - 1) return '';
-      var x = i * bw + bw / 2;
-      return '<text x="' + x.toFixed(1) + '" y="' + (H - 5) + '" text-anchor="middle" class="hist-label">' + JR.esc(binLabel(b.start)) + '</text>';
-    }).join('');
-    return '<svg class="hist" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="条目按世纪分布：共 ' + years.length + ' 条，自' + JR.esc(binLabel(min)) + '至' + JR.esc(binLabel(max - 1)) + '。">' +
-      '<line x1="0" y1="' + (H - padB) + '" x2="' + W + '" y2="' + (H - padB) + '" stroke="var(--line-2)" stroke-width="1"/>' +
-      bars + labels + '</svg>';
+    var ticks = JR.unique([min, Math.round(min + (max - min) / 3), Math.round(max - (max - min) / 3), max]);
+    return '<div class="hist"><div class="hist__scale" aria-hidden="true"><span>' + maxCount + '</span><span>0</span></div>' +
+      '<svg class="hist__plot" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="条目按世纪分布：共 ' + years.length + ' 条，自' +
+      binLabel(min) + '至' + binLabel(max) + '，单个世纪最多 ' + maxCount + ' 条。">' + bars + '</svg>' +
+      '<div class="hist__axis" aria-hidden="true">' + ticks.map(function (c) {
+        var position = (c - min + 0.5) / bins.length * 100;
+        return '<span style="--tick-position:' + position.toFixed(2) + '%">' + binLabel(c) + '</span>';
+      }).join('') + '</div></div>';
   }
 
-  function binLabel(start) {
-    if (start < 0) return '前' + Math.abs(start) + '世纪';
-    if (start === 0) return '公元 1 世纪';
-    return start + ' 世纪';
+  function binLabel(century) {
+    return century < 0 ? '前 ' + Math.abs(century) + ' 世纪' : (century + 1) + ' 世纪';
   }
 
   /* ------------------------------------------------------------ 数据观察（由条目实时计算） */
@@ -156,19 +147,18 @@
     return picks.slice(0, 6);
   }
 
-  function entryRow(e, i) {
+  function entryRow(e) {
     var term = e.term || {};
     var names = JR.unique([term.primary].concat(term.variants || [])).slice(0, 3);
     var traits = (e.traits || []).slice(0, 3);
     return '<li class="home-entry">' +
       '<a class="home-entry__link" href="#/entry/' + JR.param(e.id) + '">' +
-      '<span class="home-entry__idx mono">' + String(i + 1).padStart(2, '0') + '</span>' +
       '<span class="home-entry__era">' + JR.esc(e.dateDisplay) + '</span>' +
       '<span class="home-entry__main">' +
       '<span class="home-entry__title">' + JR.esc(e.title) + '</span>' +
       '<span class="home-entry__work">' + JR.esc(e.work || '') + (e.creator ? ' · ' + JR.esc(e.creator) : '') + '</span>' +
       '</span>' +
-      '<span class="home-entry__names">' + names.map(function (n) { return '<span class="tag tag--ghost">' + JR.esc(n) + '</span>'; }).join('') + '</span>' +
+      '<span class="home-entry__names">' + JR.esc(names.join(' / ')) + '</span>' +
       '<span class="home-entry__traits">' + traits.map(function (t) { return '<span class="tag">' + JR.esc(JR.traitLabel(t)) + '</span>'; }).join('') + '</span>' +
       '<span class="home-entry__arrow" aria-hidden="true">' + JR.icon('arrow') + '</span>' +
       '</a></li>';
@@ -188,23 +178,23 @@
       link: '#/db?culture=西方'
     },
     {
-      figure: 'siren-fish', term: '美人鱼', range: '欧洲 · 近代至全球', culture: '跨文化',
+      figure: 'mermaid', term: '美人鱼', range: '欧洲 · 近代至全球', culture: '跨文化',
       body: '欧洲民间与文学中的半人半鱼形象，经安徒生《海的女儿》与电影工业成为全球符号。近现代汉译以「美人鱼」对译 mermaid，又与本土的「鲛人」「人鱼」叠合。',
       terms: ['mermaid', '美人鱼', '人鱼', '人魚'],
       link: '#/db?culture=跨文化'
     }
   ];
 
-  function lineageCol(item, index) {
-    return '<article class="lineage' + (index === 1 ? ' lineage--offset' : '') + '">' +
+  function lineageCol(item) {
+    return '<article class="lineage">' +
+      '<div class="lineage__figure">' + JR.figure(item.figure) + '</div>' +
       '<div class="lineage__head">' +
-      '<span class="lineage__term serif">' + JR.esc(item.term) + '</span>' +
+      '<h3 class="lineage__term">' + JR.esc(item.term) + '</h3>' +
       '<span class="caption">' + JR.esc(item.range) + '</span>' +
       '</div>' +
-      '<div class="lineage__figure">' + JR.figure(item.figure) + '</div>' +
       '<p class="lineage__body">' + JR.esc(item.body) + '</p>' +
-      '<div class="lineage__terms">' + item.terms.map(function (t) { return '<span class="tag tag--ghost">' + JR.esc(t) + '</span>'; }).join('') + '</div>' +
-      '<a class="text-link" href="' + item.link + '">在资料库中查看' + JR.icon('arrow') + '</a>' +
+      '<p class="lineage__terms">' + JR.esc(item.terms.join(' / ')) + '</p>' +
+      '<a class="text-link" href="' + item.link + '">查看相关条目' + JR.icon('arrow') + '</a>' +
       '</article>';
   }
 
@@ -214,6 +204,7 @@
     var counts = S.traits ? S.traits.length : 0;
     var featuredList = featured();
     var obs = observations();
+    var assetRoot = JR.escAttr(window.JR_FIGURE_ASSET_ROOT || 'assets/');
     var conf = ['确证', '版本存异', '待核'].map(function (id) {
       return '<span class="home-conf__item"><span class="badge ' + (id === '确证' ? 'badge--ok' : id === '版本存异' ? 'badge--warn' : 'badge--unknown') + '">' + JR.esc(id) + '</span><span class="mono">' + countConfidence(id) + '</span></span>';
     }).join('');
@@ -223,34 +214,42 @@
       '<section class="hero">' +
       '<div class="wrap hero__grid">' +
       '<div class="hero__copy">' +
-      '<p class="kicker">跨文化神话研究 · 数字档案</p>' +
+      '<p class="hero__overline">跨文化神话研究档案</p>' +
       '<h1 class="display hero__title">从鲛人<span class="hero__title-line">到美人鱼</span></h1>' +
-      '<p class="hero__sub">关于神话形象的跨文化重构的可视化研究。检索古籍、译名与当代作品，比较鲛人、美人鱼与塞壬的趋同与留存。</p>' +
-      '<div class="btn-group hero__cta">' +
-      '<a class="btn btn--solid" href="#/db">进入资料库' + JR.icon('arrow') + '</a>' +
-      '<a class="btn btn--ghost" href="#/timeline">沿时间轴阅读</a>' +
+      '<p class="hero__sub">从古籍、译名与当代作品中，<br>追索鲛人、塞壬与美人鱼的演变。</p>' +
+      '<form class="hero__cta" role="search" aria-label="检索资料库">' +
+      '<div class="search hero__search">' + JR.icon('search') +
+      '<label class="sr-only" for="home-q">搜索题名、异名或引文</label>' +
+      '<input class="input" id="home-q" name="q" type="search" placeholder="题名、异名、引文" maxlength="80">' +
+      '</div>' +
+      '<button class="btn btn--solid" type="submit">检索</button>' +
+      '</form>' +
+      '<div class="hero__links">' +
+      '<a class="text-link" href="#/db">浏览资料库' + JR.icon('arrow') + '</a>' +
+      '<a class="text-link" href="#/timeline">沿时间轴阅读' + JR.icon('arrow') + '</a>' +
       '</div>' +
       '</div>' +
-      '<div class="hero__visual">' +
-      '<div class="hero-plate">' +
-      '<div class="hero-plate__meta"><span class="mono">图版 01</span><span>据文献描述重绘</span></div>' +
-      '<div class="hero-plate__figure">' + JR.figure('jiao-ren') + '</div>' +
-      '<div class="hero-plate__caption"><span class="seal">鲛</span><span>人首鱼身 · 织绡泣珠</span></div>' +
-      '<span class="hero-plate__vertical">跨文化重构</span>' +
-      '<div class="hero-plate__wave">' + JR.figure('wave') + '</div>' +
-      '</div>' +
-      '<p class="hero__note"><span class="mono">FIG. 01</span> 鲛人线描为研究示意图，非文物复制。图像只承担索引功能，不替代原典与实物证据。</p>' +
-      '</div>' +
+      '<figure class="hero__visual">' +
+      '<img class="hero__art" src="' + assetRoot + 'jiaoren.webp" srcset="' + assetRoot + 'jiaoren-720.webp 720w, ' + assetRoot + 'jiaoren.webp 1448w" sizes="(max-width: 680px) 92vw, 55vw" width="1448" height="1086" fetchpriority="high" alt="海浪中的鲛人手执薄绡，珠滴顺着绡纱滑落。">' +
+      '<figcaption class="hero__note"><strong>鲛人 · 织绡与泣珠</strong><span>AI 创作示意</span></figcaption>' +
+      '</figure>' +
       '</div>' +
       '</section>' +
+
+      '<dl class="wrap home-stats" aria-label="收录概况">' +
+      statBlock(String(n), '条目', '古籍、译名与当代作品') +
+      statBlock(spanText(), '时间跨度', '按条目年代估算') +
+      statBlock(String(Object.keys(cult).length), '谱系', '中国、西方、东亚、跨文化') +
+      statBlock(String(counts), '编码维度', '形态、能力与叙事功能') +
+      '</dl>' +
 
       /* ------------------------------------------------ 三条谱系 */
       '<section class="section home-lineages">' +
       '<div class="wrap">' +
       '<div class="section-head">' +
-      '<p class="kicker">谱系</p>' +
-      '<h2 class="section-title">三条源流，一个正在合流的名称</h2>' +
-      '<p class="section-desc">鲛人、塞壬、美人鱼并非同一形象的三次命名。它们各有独立的文本与图像传统，在翻译、宗教、印刷与影视工业中不断交叠。资料库把「名称」「外形」「叙事功能」拆成可比较的编码，正是为了让这些交叠处可以被逐条检查。</p>' +
+      '<h2 class="section-title">鲛人、塞壬与美人鱼</h2>' +
+      '<p class="section-desc">三条源流各有自己的文本与图像传统，又在翻译、宗教、出版与影视中交叠。可以从名称、外形与叙事功能入手，逐条比对。</p>' +
+      '<p class="caption">下列图像均为 AI 创作示意。塞壬陶片为虚构图像。</p>' +
       '</div>' +
       '<div class="lineage-grid">' + LINEAGES.map(lineageCol).join('') + '</div>' +
       '</div>' +
@@ -260,21 +259,14 @@
       '<section class="section home-data">' +
       '<div class="wrap home-data__grid">' +
       '<div class="home-data__left">' +
-      '<p class="kicker">数据</p>' +
-      '<h2 class="section-title">数据的形状</h2>' +
-      '<p class="section-desc">这些数字由本站条目实时计算，不是预先写定的宣传口径。条目增加，数字随之变化。</p>' +
-      '<div class="stat-row home-stats">' +
-      statBlock(String(n), '条目', '古籍、译名与当代作品') +
-      statBlock(spanText(), '时间跨度', '按条目年代估算') +
-      statBlock(String(Object.keys(cult).length), '谱系', '中国 / 西方 / 东亚 / 跨文化') +
-      statBlock(String(counts), '编码维度', '形态、能力与叙事功能') +
-      '</div>' +
-      '<div class="home-conf"><span class="caption">置信度分布</span>' + conf + '</div>' +
+      '<h2 class="section-title">年代与置信度</h2>' +
+      '<p class="section-desc">年代分布反映本站的收录范围。引用前，请核对条目的出处与版本。</p>' +
+      '<div class="home-conf" aria-label="置信度分布">' + conf + '</div>' +
       '</div>' +
       '<div class="home-data__right">' +
       '<div class="home-hist">' +
-      '<div class="home-hist__head"><span class="caption">条目按世纪分布</span><a class="text-link" href="#/timeline">打开时间轴' + JR.icon('arrow') + '</a></div>' +
-      histogram() +
+      '<div class="home-hist__head"><h3>条目按世纪分布</h3><a class="text-link" href="#/timeline">打开时间轴' + JR.icon('arrow') + '</a></div>' +
+      (histogram() || '<p class="caption">年代记录暂不足以绘制分布。</p>') +
       '</div>' +
       '</div>' +
       '</div>' +
@@ -284,16 +276,14 @@
       (obs.length ? '<section class="section home-obs">' +
         '<div class="wrap">' +
         '<div class="section-head">' +
-        '<p class="kicker">观察</p>' +
-        '<h2 class="section-title">从条目里读到的几处变化</h2>' +
+        '<h2 class="section-title">可复核的研究线索</h2>' +
         '<p class="section-desc">以下判断由当前已有编码自动汇总，属于可复核的检索线索，不是研究结论。点击链接可以在资料库或比较台复现这组筛选。</p>' +
         '</div>' +
         '<ol class="obs-list">' +
-        obs.map(function (o, i) {
-          return '<li class="obs"><span class="obs__idx mono">0' + (i + 1) + '</span>' +
-            '<div class="obs__body"><h3 class="obs__title">' + JR.esc(o.title) + '</h3>' +
+        obs.map(function (o) {
+          return '<li class="obs"><h3 class="obs__title">' + JR.esc(o.title) + '</h3>' +
             '<p class="obs__text">' + JR.esc(o.text) + '</p>' +
-            '<a class="text-link" href="' + o.link + '">' + JR.esc(o.linkText) + JR.icon('arrow') + '</a></div></li>';
+            '<a class="text-link" href="' + o.link + '">' + JR.esc(o.linkText) + JR.icon('arrow') + '</a></li>';
         }).join('') +
         '</ol></div></section>' : '') +
 
@@ -301,7 +291,7 @@
       '<section class="section home-featured">' +
       '<div class="wrap">' +
       '<div class="section-head section-head--row">' +
-      '<div><p class="kicker">选读</p><h2 class="section-title">从一条记载开始</h2></div>' +
+      '<h2 class="section-title">条目选读</h2>' +
       '<a class="text-link" href="#/db">浏览全部 ' + n + ' 条' + JR.icon('arrow') + '</a>' +
       '</div>' +
       '<ol class="home-entries">' + featuredList.map(entryRow).join('') + '</ol>' +
@@ -312,9 +302,7 @@
       '<section class="section home-paths">' +
       '<div class="wrap">' +
       '<div class="section-head">' +
-      '<p class="kicker">使用</p>' +
-      '<h2 class="section-title">查、比、看变化</h2>' +
-      '<p class="section-desc">数据库不是结论的展示柜，而是一组可以反复操作的比较装置。</p>' +
+      '<h2 class="section-title">使用指南</h2>' +
       '</div>' +
       '<div class="path-grid">' +
       '<a class="path" href="#/db"><span class="path__label serif">检索</span><span class="path__text">按年代、作品、谱系与形象特征筛选，查看每条记录的原文、出处与编码。</span><span class="path__arrow">' + JR.icon('arrow') + '</span></a>' +
@@ -327,9 +315,8 @@
       /* ------------------------------------------------ 结语 */
       '<section class="section section--tight home-closing">' +
       '<div class="wrap home-closing__inner">' +
-      '<p class="home-closing__quote serif">档案不提供结论，<br>它让比较变得可以操作。</p>' +
+      '<h2 class="section-title">研究与引用</h2>' +
       '<div class="home-closing__side">' +
-      '<p class="caption">项目全称</p>' +
       '<p class="home-closing__title">从鲛人到美人鱼——关于神话形象的跨文化重构的可视化研究</p>' +
       '<p class="home-closing__text">收录古籍记载、译名与当代作品中的具体案例，供民间文学、比较文学与神话学研究使用。引用前请核对原典与版本；条目的置信度标注见详情页。</p>' +
       '<a class="btn btn--ghost btn--sm" href="#/about">阅读研究说明</a>' +
@@ -339,32 +326,16 @@
   }
 
   function mount(root) {
-    if (JR.isReducedMotion()) return;
-    var items = root.querySelectorAll('.lineage, .obs, .home-entry, .path, .home-hist');
-    if (!items.length) return;
-    items.forEach(function (el) { el.classList.add('reveal'); });
-    if (!('IntersectionObserver' in window)) {
-      items.forEach(function (el) { el.classList.add('is-in'); });
-      return;
-    }
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-in');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
-    items.forEach(function (el) { io.observe(el); });
-    this._io = io;
+    var form = root.querySelector('.hero__cta');
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      JR.go('db', { q: form.elements.q.value.trim() });
+    });
   }
 
   JR.page('home', {
     title: '首页',
     render: render,
-    mount: mount,
-    unmount: function () {
-      if (this._io) { this._io.disconnect(); this._io = null; }
-    }
+    mount: mount
   });
 })();
